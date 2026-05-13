@@ -1,0 +1,16 @@
+name: fatigue_base
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.3
+  - r-dplyr
+  - r-tidyr
+  - r-readr
+  - r-tibble
+  - r-ggplot2
+  - r-ggrepel
+  - r-rcolorbrewer
+  - r-matrixstats
+  - r-forcats

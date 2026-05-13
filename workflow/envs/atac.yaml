@@ -1,0 +1,23 @@
+name: fatigue_atac
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.3
+  - r-dplyr
+  - r-tidyr
+  - r-readr
+  - r-tibble
+  - r-ggplot2
+  - r-ggrepel
+  - r-rcolorbrewer
+  - r-forcats
+  - bioconductor-genomicranges
+  - bioconductor-deseq2
+  - bioconductor-apeglm
+  - bioconductor-chipseeker
+  - bioconductor-org.hs.eg.db
+  - bioconductor-txdb.hsapiens.ucsc.hg38.knowngene
+  - bioconductor-rgreat
+  - bioconductor-plyranges

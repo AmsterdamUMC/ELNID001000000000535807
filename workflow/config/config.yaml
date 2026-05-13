@@ -1,0 +1,64 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# config/config.yaml  
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── I/O paths ─────────────────────────────────────────────────────────────────
+output_dir: "results"
+
+atac:
+  count_file1: "/net/beegfs/groups/tytgat/ELNID001000000000535807/data/Q52867_ATACseq/PeakCalling/consensus/consensus_peaks.mLb.clN.featureCounts.txt"
+  count_file2: "/net/beegfs/groups/tytgat/ELNID001000000000535807/data/ATACseq/PeakCalling/consensus/consensus_peaks.mLb.clN.featureCounts.txt"
+  metadata_file: "config/atac_metadata.csv"          
+
+rna:
+  counts_raw:    "/net/beegfs/groups/tytgat/ELNID001000000000466898/bulkRNAseq_pipeline/output/rnaseq/counts/counts.txt"
+  metadata_file: "/net/beegfs/groups/tytgat/ELNID001000000000466898/metadata/20250220_allmetadata_FIBD22_final-labeled_DNA.xlsx"
+
+# ── Shared analysis thresholds ─────────────────────────────────────────────────
+lfc_threshold:  1.0
+pval_threshold: 0.05
+padj_threshold: 0.05
+
+# ── ATAC-specific settings ─────────────────────────────────────────────────────
+atac_min_row_sums:     10
+great_padj_binom:      0.1
+great_padj_hyper:      0.05
+
+# ATAC sample column mapping (original BAM column names → short sample IDs)
+atac_count_columns:
+  - "X03_0KXN_02UCAUMC_Low.fatigue.3_ATAC_i3.3_REP1.mLb.clN.sorted.bam"
+  - "X08_0KXQ_02UCAUMC_High.fatigue.2_ATAC_i6.522_REP1.mLb.clN.sorted.bam"
+  - "X02_0KXM_02UCAUMC_Low.fatigue.2_ATAC_i2.2_REP1.mLb.clN.sorted.bam"
+  - "X01_0KXL_02UCAUMC_Low.fatigue.1_ATAC_i1.1_REP1.mLb.clN.sorted.bam"
+  - "X09_0KXR_02UCAUMC_High.fatigue.3_ATAC_i7.15_REP1.mLb.clN.sorted.bam"
+  - "X06_0KXP_02UCAUMC_Medium.fatigue.3_ATAC_i5.521_REP1.mLb.clN.sorted.bam"
+  - "X05_0KXO_02UCAUMC_Medium.fatigue.2_ATAC_hs_i4.4_REP1.mLb.clN.sorted.bam"
+  - "X03_0KC9_02SLTytgat_High.fatigue.1_ATAC_hs_i29.48_REP1.mLb.clN.sorted.bam"
+  - "X01_0KC8_02SLTytgat_Medium.fatigue.1_ATAC_hs_i28.47_REP1.mLb.clN.sorted.bam"
+
+atac_new_count_columns:
+  - "Low.fatigue.3"
+  - "High.fatigue.2"
+  - "Low.fatigue.2"
+  - "Low.fatigue.1"
+  - "High.fatigue.3"
+  - "Medium.fatigue.3"
+  - "Medium.fatigue.2"
+  - "High.fatigue.1"
+  - "Medium.fatigue.1"
+
+# Samples to drop (Low fatigue group is excluded from ATAC DESeq2 contrast)
+atac_cols_to_remove:
+  - "Low.fatigue.3"
+  - "Low.fatigue.2"
+  - "Low.fatigue.1"
+
+# ── RNA-specific settings ──────────────────────────────────────────────────────
+rna_min_counts:          10
+rna_min_samples:          3
+rna_top_var_peaks:     1000
+rna_padj_threshold:    0.01
+fgsea_min_size:          15
+fgsea_max_size:         500
+fgsea_nes_threshold:    1.5
+go_pattern: "OX|MITOC|METAB|GLYCOL|CIRC|HYDROGEN_PEROXIDE"

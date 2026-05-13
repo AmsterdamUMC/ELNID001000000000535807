@@ -1,0 +1,33 @@
+"""
+Fatigue Study Multi-Omics Pipeline
+===================================
+Orchestrates ATAC-seq and RNA-seq differential analysis for
+High vs Medium/Low fatigue group comparisons.
+"""
+
+configfile: "config/config.yaml"
+
+include: "rules/atac.smk"
+include: "rules/rnaseq.smk"
+
+# ── Final targets ──────────────────────────────────────────────────────────────
+rule all:
+    input:
+        # ATAC-seq outputs
+        expand("{outdir}/atac/differential_peaks.csv",        outdir=config["output_dir"]),
+        expand("{outdir}/atac/annotated_peaks.csv",           outdir=config["output_dir"]),
+        expand("{outdir}/atac/vsd_counts.csv",                outdir=config["output_dir"]),
+        expand("{outdir}/atac/pca_group.png",                 outdir=config["output_dir"]),
+        expand("{outdir}/atac/volcano_plot.png",              outdir=config["output_dir"]),
+        expand("{outdir}/atac/GREATpathwayEnrichment_hf.csv", outdir=config["output_dir"]),
+        expand("{outdir}/atac/GREATpathwayEnrichment_mf.csv", outdir=config["output_dir"]),
+        expand("{outdir}/atac/GREATpathways_hf.png",          outdir=config["output_dir"]),
+        expand("{outdir}/atac/GREATpathways_mf.png",          outdir=config["output_dir"]),
+        # RNA-seq outputs
+        expand("{outdir}/rna/differentialAnalysis_RNAseq_HighVSLow.csv", outdir=config["output_dir"]),
+        expand("{outdir}/rna/pca.png",                                    outdir=config["output_dir"]),
+        expand("{outdir}/rna/heatmap.png",                                outdir=config["output_dir"]),
+        expand("{outdir}/rna/volcano_plot.png",                           outdir=config["output_dir"]),
+        expand("{outdir}/rna/enrichedPathways_HighFatigue.csv",           outdir=config["output_dir"]),
+        expand("{outdir}/rna/pathwayEnrichment_topPathways.png",          outdir=config["output_dir"]),
+        expand("{outdir}/rna/pathwayEnrichment_selectedPathways.png",     outdir=config["output_dir"]),

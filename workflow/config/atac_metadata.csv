@@ -1,0 +1,7 @@
+patientID,sex,MFI,group,batch
+High.fatigue.1,female,80,High_fatigue,1
+High.fatigue.2,female,80,High_fatigue,2
+High.fatigue.3,female,86,High_fatigue,2
+Medium.fatigue.1,male,40,Medium_fatigue,1
+Medium.fatigue.2,female,43,Medium_fatigue,2
+Medium.fatigue.3,male,46,Medium_fatigue,2
