@@ -1,8 +1,4 @@
 # workflow/scripts/atac_merge_counts.R
-# Snakemake rule: atac_merge_counts
-# Merges two batch-specific ATAC-seq peak count tables into a single
-# GRanges-based count matrix by reducing overlapping peaks.
-
 log_file <- snakemake@log[[1]]
 con      <- file(log_file, open = "wt")
 sink(con, type = "message")
@@ -10,57 +6,76 @@ sink(con, type = "output")
 
 suppressPackageStartupMessages({
   library(dplyr)
+  library(purrr)
   library(GenomicRanges)
   library(tibble)
-  library(readr)
 })
 
-# ── Parameters from config ────────────────────────────────────────────────────
-count_columns     <- snakemake@params$count_columns
-new_count_columns <- snakemake@params$new_count_columns
-cols_to_remove    <- snakemake@params$cols_to_remove
+# ── Parameters ────────────────────────────────────────────────────────────────
+count_beds     <- snakemake@input$count_beds
+sample_map     <- snakemake@params$sample_map     # long_name → short_name
+cols_to_remove <- snakemake@params$cols_to_remove
 
-# ── Helper functions ──────────────────────────────────────────────────────────
-aggregate_counts <- function(revmap, mcols_df, cols) {
-  sapply(cols, function(col) {
-    col_counts <- mcols_df[[col]]
-    vapply(revmap, function(ix) sum(col_counts[ix], na.rm = TRUE), numeric(1))
-  })
+# ── Load per-sample count BED files ───────────────────────────────────────────
+message("Reading ", length(count_beds), " count files...")
+
+count_list <- map(count_beds, function(path) {
+  #long_name <- sub("\\.bam$", "", sub("_counts\\.bed$", "", basename(path)))
+  long_name <- sub("_counts\\.bed$", "", basename(path))
+  df <- read.table(path, header = FALSE, sep = "\t",
+                   col.names = c("chr", "start", "end", long_name))
+  df
+})
+
+# ── Assemble matrix ───────────────────────────────────────────────────────────
+message("Assembling count matrix...")
+
+coords       <- count_list[[1]][, c("chr", "start", "end")]
+count_matrix <- bind_cols(coords, map(count_list, ~ .x[, 4, drop = FALSE]))
+
+# ── Rename: long BAM stem → short sample ID ───────────────────────────────────
+message("Renaming columns...")
+
+# R mangles column names when reading: digits->X prefix, hyphens->dots
+# Apply the same mangling to sample_map keys so they match
+names(sample_map) <- sub("\\.bam$", "", names(sample_map))  # strip .bam
+names(sample_map) <- make.names(names(sample_map))           # apply same R mangling
+
+# Verify keys now match column names
+unmatched <- setdiff(names(count_matrix)[-(1:3)], names(sample_map))
+if (length(unmatched) > 0) {
+  warning("These columns had no match in sample_map: ", 
+          paste(unmatched, collapse=", "))
 }
 
-rename_and_filter_mcols <- function(mcols_df) {
-  colnames(mcols_df) <- new_count_columns
-  mcols_df <- as.data.frame(mcols_df) %>%
-    dplyr::select(-dplyr::any_of(cols_to_remove))
-  mcols_df <- mcols_df[, order(colnames(mcols_df))]
-  mcols_df
+colnames(count_matrix) <- dplyr::recode(colnames(count_matrix), !!!sample_map)
+
+message("Columns after renaming: ", paste(colnames(count_matrix), collapse=", "))
+
+# ── Remove unwanted samples (uses short names) ────────────────────────────────
+if (length(cols_to_remove) > 0) {
+  message("Removing: ", paste(cols_to_remove, collapse = ", "))
+  count_matrix <- count_matrix %>% dplyr::select(-any_of(cols_to_remove))
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────────
-message("Reading count tables...")
-ct1 <- read.table(snakemake@input$file1, sep = "\t", header = TRUE)
-ct2 <- read.table(snakemake@input$file2, sep = "\t", header = TRUE)
+# ── Sort sample columns alphabetically ────────────────────────────────────────
+coord_cols  <- c("chr", "start", "end")
+sample_cols <- sort(setdiff(colnames(count_matrix), coord_cols))
+count_matrix <- count_matrix[, c(coord_cols, sample_cols)]
 
-gr1 <- makeGRangesFromDataFrame(ct1, keep.extra.columns = TRUE)
-gr2 <- makeGRangesFromDataFrame(ct2, keep.extra.columns = TRUE)
-gr_all <- c(gr1, gr2)
+# ── Build GRanges ─────────────────────────────────────────────────────────────
+message("Building GRanges object...")
+gr_union <- makeGRangesFromDataFrame(count_matrix, keep.extra.columns = TRUE)
 
-message("Reducing overlapping peaks...")
-gr_union <- GenomicRanges::reduce(gr_all, with.revmap = TRUE)
-
-all_mcols <- as.data.frame(mcols(gr_all))
-agg       <- aggregate_counts(gr_union$revmap, all_mcols, count_columns)
-mcols(gr_union)[count_columns] <- agg
-mcols(gr_union)$revmap         <- NULL
-mcols(gr_union)                <- rename_and_filter_mcols(mcols(gr_union))
-
-message("Building full count table...")
-full_ct <- as.data.frame(gr_union) %>%
-  mutate(region_id = paste0(seqnames, "_", start, "_", end)) %>%
+# ── Build count table ─────────────────────────────────────────────────────────
+message("Building count table...")
+full_ct <- count_matrix %>%
+  mutate(region_id = paste0(chr, "_", start, "_", end)) %>%
   column_to_rownames("region_id") %>%
-  dplyr::select(-seqnames, -start, -end, -width, -strand)
+  dplyr::select(-chr, -start, -end)
 
+# ── Save ──────────────────────────────────────────────────────────────────────
 message("Saving outputs...")
-saveRDS(full_ct,   snakemake@output$counts_rds)
-saveRDS(gr_union,  snakemake@output$gr_rds)
-message("Done. Merged ", nrow(full_ct), " regions.")
+saveRDS(full_ct,  snakemake@output$counts_rds)
+saveRDS(gr_union, snakemake@output$gr_rds)
+message("Done. ", nrow(full_ct), " peaks x ", ncol(full_ct), " samples.")

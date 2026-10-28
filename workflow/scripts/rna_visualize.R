@@ -19,7 +19,9 @@ suppressPackageStartupMessages({
 source(file.path(snakemake@scriptdir, "utils.R"))
 
 # ── Parameters ────────────────────────────────────────────────────────────────
-top_var_peaks <- snakemake@params$top_var_peaks
+top_var_peaks   <- snakemake@params$top_var_peaks
+grouping_factor <- snakemake@params$grouping_factor
+deseq_coef      <- snakemake@params$deseq_coef
 
 # ── Load inputs ───────────────────────────────────────────────────────────────
 message("Loading inputs...")
@@ -31,7 +33,7 @@ metadata <- readRDS(snakemake@input$metadata_rds)
 
 # ── PCA ───────────────────────────────────────────────────────────────────────
 message("Generating PCA plot...")
-plot_pca(vsd, "group", snakemake@output$pca_png)
+plot_pca(vsd, grouping_factor, snakemake@output$pca_png)
 
 # ── Heatmap of top variable genes ─────────────────────────────────────────────
 message("Generating heatmap...")
@@ -51,9 +53,14 @@ mat_top <- count_mat[top_peaks, ] %>%
   dplyr::select(-ensembl_gene_id, -variance) %>%
   column_to_rownames("hgnc_symbol")
 
-grouping_vector <- metadata$group
-n_groups <- length(unique(grouping_vector))
-col_side <- brewer.pal(max(3, n_groups), "Set2")[as.integer(grouping_vector)]
+grouping_vector <- factor(metadata[[grouping_factor]])
+
+groups <- levels(grouping_vector)
+n_groups <- length(groups)
+pal <- brewer.pal(3, "Set2")
+group_cols <- setNames(pal[seq_len(n_groups)], groups)
+
+col_side <- group_cols[grouping_vector]
 coul     <- colorRampPalette(brewer.pal(8, "PiYG"))(25)
 
 png(snakemake@output$heatmap_png, width = 6, height = 8, units = "in", res = 300)
@@ -68,6 +75,7 @@ volcano_plot(
   gene_col  = "hgnc_symbol",
   title     = "Expression",
   plot_path = snakemake@output$volcano_png,
+  comparison_title = deseq_coef,
   lfc_thr   = snakemake@params$lfc_threshold,
   pval_thr  = snakemake@params$pval_threshold,
   padj_thr  = snakemake@params$padj_threshold

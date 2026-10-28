@@ -24,6 +24,31 @@ message("Loading inputs...")
 dds           <- readRDS(snakemake@input$dds_rds)
 gr_counts     <- readRDS(snakemake@input$gr_rds)
 filtered_res  <- read_csv(snakemake@input$differential_csv, show_col_types = FALSE)
+deseq_coef   <- snakemake@params$deseq_coef
+comparison        <- snakemake@params$comparison
+continuous        <- isTRUE(snakemake@params$continuous)
+
+comparison_label <- switch(comparison,
+                           "CD_fatigue"                      = "High vs Low Fatigue (CD)",
+                           "UC_fatigue"                      = "High vs Low Fatigue (UC)",
+                           "UC_vs_CD"                        = "UC vs CD",
+                           "CD_fatigue_Active"               = "High vs Low Fatigue (CD, Active)",
+                           "CD_fatigue_Remission"            = "High vs Low Fatigue (CD, Remission)",
+                           "UC_fatigue_Active"               = "High vs Low Fatigue (UC, Active)",
+                           "UC_fatigue_Remission"            = "High vs Low Fatigue (UC, Remission)",
+                           "UC_vs_CD_Active"                 = "UC vs CD (Active)",
+                           "UC_vs_CD_Remission"              = "UC vs CD (Remission)",
+                           "CD_fatigue_continuous"           = "MFI Score (CD)",
+                           "UC_fatigue_continuous"           = "MFI Score (UC)",
+                           "CD_fatigue_continuous_Active"    = "MFI Score (CD, Active)",
+                           "CD_fatigue_continuous_Remission" = "MFI Score (CD, Remission)",
+                           "UC_fatigue_continuous_Active"    = "MFI Score (UC, Active)",
+                           "UC_fatigue_continuous_Remission" = "MFI Score (UC, Remission)",
+                           "CD_Active_vs_Remission"          = "Active vs Remission (CD)",
+                           "UC_Active_vs_Remission"          = "Active vs Remission (UC)",
+                           "Active_vs_Remission"             = "Active vs Remission (pooled)",
+                           comparison   # fallback
+)
 
 # ── Annotate peaks ────────────────────────────────────────────────────────────
 message("Annotating peaks with ChIPseeker...")
@@ -46,6 +71,7 @@ volcano_plot(
   gene_col   = "SYMBOL",
   title      = "Accessibility",
   plot_path  = snakemake@output$volcano_png,
+  comparison_title = comparison_label,
   lfc_thr    = snakemake@params$lfc_threshold,
   pval_thr   = snakemake@params$pval_threshold,
   padj_thr   = snakemake@params$padj_threshold

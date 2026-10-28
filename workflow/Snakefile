@@ -2,7 +2,8 @@
 Fatigue Study Multi-Omics Pipeline
 ===================================
 Orchestrates ATAC-seq and RNA-seq differential analysis for
-High vs Medium/Low fatigue group comparisons.
+High vs Low fatigue in CD/UC,
+or UC vs CD
 """
 
 configfile: "config/config.yaml"
@@ -10,24 +11,100 @@ configfile: "config/config.yaml"
 include: "rules/atac.smk"
 include: "rules/rnaseq.smk"
 
+ATAC_DATABASES = {
+    "GO_BP": "msigdb:C5:GO:BP",
+    "KEGG":  "msigdb:C2:CP:KEGG",
+}
+
+RNA_DATABASES = {
+    "GO_BP": "GO:BP",
+    "KEGG":  "CP:KEGG_MEDICUS",
+}
+COMPARISONS = {
+    # ── Categorical fatigue (unstratified) ────────────────────────────────────
+    "fatigue_continuous":                         {"subset": None,  "coef": "MFI_scaled", "grouping_factor": "group", "subset_status": None,        "continuous": True, "status_contrast": False,  "hc_comparison": False},
+    "fatigue_continuous_Active":                  {"subset": None,  "coef": "MFI_scaled", "grouping_factor": "group", "subset_status": "Active",    "continuous": True, "status_contrast": False,  "hc_comparison": False},
+    "fatigue_continuous_Remission":               {"subset": None,  "coef": "MFI_scaled", "grouping_factor": "group", "subset_status": "Remission", "continuous": True, "status_contrast": False,  "hc_comparison": False},
+
+    "CD_fatigue":                      {"subset": "CD",  "coef": "group_High_Fatigue_vs_Low_Fatigue", "grouping_factor": "group", "subset_status": None,        "continuous": False, "status_contrast": False,  "hc_comparison": False},
+    "UC_fatigue":                      {"subset": "UC",  "coef": "group_High_Fatigue_vs_Low_Fatigue", "grouping_factor": "group", "subset_status": None,        "continuous": False, "status_contrast": False,  "hc_comparison": False},
+
+    # ── Categorical fatigue, stratified by disease status ─────────────────────
+    "CD_fatigue_Active":               {"subset": "CD",  "coef": "group_High_Fatigue_vs_Low_Fatigue", "grouping_factor": "group", "subset_status": "Active",    "continuous": False, "status_contrast": False,  "hc_comparison": False},
+    "CD_fatigue_Remission":            {"subset": "CD",  "coef": "group_High_Fatigue_vs_Low_Fatigue", "grouping_factor": "group", "subset_status": "Remission", "continuous": False, "status_contrast": False,  "hc_comparison": False},
+    "UC_fatigue_Active":               {"subset": "UC",  "coef": "group_High_Fatigue_vs_Low_Fatigue", "grouping_factor": "group", "subset_status": "Active",    "continuous": False, "status_contrast": False,  "hc_comparison": False},
+    "UC_fatigue_Remission":            {"subset": "UC",  "coef": "group_High_Fatigue_vs_Low_Fatigue", "grouping_factor": "group", "subset_status": "Remission", "continuous": False, "status_contrast": False,  "hc_comparison": False},
+
+    # ── Continuous MFI (fatigue score) ────────────────────────────────────────
+    "CD_fatigue_continuous":           {"subset": "CD",  "coef": "MFI_scaled",                        "grouping_factor": "group",  "subset_status": None,        "continuous": True,  "status_contrast": False,  "hc_comparison": False},
+    "UC_fatigue_continuous":           {"subset": "UC",  "coef": "MFI_scaled",                        "grouping_factor": "group",  "subset_status": None,        "continuous": True,  "status_contrast": False,  "hc_comparison": False},
+    "CD_fatigue_continuous_Active":    {"subset": "CD",  "coef": "MFI_scaled",                        "grouping_factor": "group",  "subset_status": "Active",    "continuous": True,  "status_contrast": False,  "hc_comparison": False},
+    "CD_fatigue_continuous_Remission": {"subset": "CD",  "coef": "MFI_scaled",                        "grouping_factor": "group",  "subset_status": "Remission", "continuous": True,  "status_contrast": False,  "hc_comparison": False},
+    "UC_fatigue_continuous_Active":    {"subset": "UC",  "coef": "MFI_scaled",                        "grouping_factor": "group",  "subset_status": "Active",    "continuous": True,  "status_contrast": False,  "hc_comparison": False},
+    "UC_fatigue_continuous_Remission": {"subset": "UC",  "coef": "MFI_scaled",                        "grouping_factor": "group",  "subset_status": "Remission", "continuous": True,  "status_contrast": False,  "hc_comparison": False},
+
+    # ── UC vs CD (disease type contrasts) ─────────────────────────────────────
+    # Each entry is fitted with FRiP and without FRiP.
+    "UC_vs_CD":                        {"subset": None,  "coef": "Type_UC_vs_CD",                     "grouping_factor": "Type",   "subset_status": None,        "continuous": False, "status_contrast": False,  "hc_comparison": False, "frip_adjust": True},
+    "UC_vs_CD_noFRiP":                 {"subset": None,  "coef": "Type_UC_vs_CD",                     "grouping_factor": "Type",   "subset_status": None,        "continuous": False, "status_contrast": False,  "hc_comparison": False, "frip_adjust": False},
+    "UC_vs_CD_Active":                 {"subset": None,  "coef": "Type_UC_vs_CD",                     "grouping_factor": "Type",   "subset_status": "Active",    "continuous": False, "status_contrast": False,  "hc_comparison": False, "frip_adjust": True},
+    "UC_vs_CD_Active_noFRiP":          {"subset": None,  "coef": "Type_UC_vs_CD",                     "grouping_factor": "Type",   "subset_status": "Active",    "continuous": False, "status_contrast": False,  "hc_comparison": False, "frip_adjust": False},
+    "UC_vs_CD_Remission":              {"subset": None,  "coef": "Type_UC_vs_CD",                     "grouping_factor": "Type",   "subset_status": "Remission", "continuous": False, "status_contrast": False,  "hc_comparison": False, "frip_adjust": True},
+    "UC_vs_CD_Remission_noFRiP":       {"subset": None,  "coef": "Type_UC_vs_CD",                     "grouping_factor": "Type",   "subset_status": "Remission", "continuous": False, "status_contrast": False,  "hc_comparison": False, "frip_adjust": False},
+
+    # ── Active vs Remission (disease status contrasts) ────────────────────────
+    # All IBD samples: Type is a covariate.
+    "Active_vs_Remission":             {"subset": None,  "coef": "Status_Active_vs_Remission",        "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "frip_adjust": True},
+    "Active_vs_Remission_noFRiP":      {"subset": None,  "coef": "Status_Active_vs_Remission",        "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "frip_adjust": False},
+
+    # Within one type, pooled fit (CD + UC samples, one Status coefficient per type).
+    "CD_Active_vs_Remission":          {"subset": "CD",  "coef": "TypeCD.StatusActive",               "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "pool_types": True,  "frip_adjust": True},
+    "CD_Active_vs_Remission_noFRiP":   {"subset": "CD",  "coef": "TypeCD.StatusActive",               "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "pool_types": True,  "frip_adjust": False},
+    "UC_Active_vs_Remission":          {"subset": "UC",  "coef": "TypeUC.StatusActive",               "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "pool_types": True,  "frip_adjust": True},
+    "UC_Active_vs_Remission_noFRiP":   {"subset": "UC",  "coef": "TypeUC.StatusActive",               "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "pool_types": True,  "frip_adjust": False},
+
+    # Within one type, separate fit (samples of that type only). Use it to check the pooled fit.
+    "CD_Active_vs_Remission_sep":      {"subset": "CD",  "coef": "Status_Active_vs_Remission",        "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "pool_types": False, "frip_adjust": True},
+    "UC_Active_vs_Remission_sep":      {"subset": "UC",  "coef": "Status_Active_vs_Remission",        "grouping_factor": "Status", "subset_status": None,        "continuous": False, "status_contrast": True,  "hc_comparison": False, "pool_types": False, "frip_adjust": True},
+
+    # ── HC vs IBD (unchanged) ─────────────────────────────────────────────────
+    "HC_vs_CD_Remission_Low_Fatigue":   {"subset": "CD",  "coef": "Status_Healthy_vs_Remission", "grouping_factor": "Status", "subset_status": None, "continuous": False, "status_contrast": True, "hc_comparison": True, "hc_fatigue_level": "Low"},
+    "HC_vs_UC_Remission_Low_Fatigue":   {"subset": "UC",  "coef": "Status_Healthy_vs_Remission", "grouping_factor": "Status", "subset_status": None, "continuous": False, "status_contrast": True, "hc_comparison": True, "hc_fatigue_level": "Low"},
+    "HC_vs_IBD_Remission_Low_Fatigue":  {"subset": None,  "coef": "Status_Healthy_vs_Remission", "grouping_factor": "Status", "subset_status": None, "continuous": False, "status_contrast": True, "hc_comparison": True, "hc_fatigue_level": "Low"},
+    "HC_vs_CD_Remission_High_Fatigue":  {"subset": "CD",  "coef": "Status_Healthy_vs_Remission", "grouping_factor": "Status", "subset_status": None, "continuous": False, "status_contrast": True, "hc_comparison": True, "hc_fatigue_level": "High"},
+    "HC_vs_IBD_Remission_High_Fatigue": {"subset": None,  "coef": "Status_Healthy_vs_Remission", "grouping_factor": "Status", "subset_status": None, "continuous": False, "status_contrast": True, "hc_comparison": True, "hc_fatigue_level": "High"},
+}
 # ── Final targets ──────────────────────────────────────────────────────────────
 rule all:
     input:
         # ATAC-seq outputs
-        expand("{outdir}/atac/differential_peaks.csv",        outdir=config["output_dir"]),
-        expand("{outdir}/atac/annotated_peaks.csv",           outdir=config["output_dir"]),
-        expand("{outdir}/atac/vsd_counts.csv",                outdir=config["output_dir"]),
-        expand("{outdir}/atac/pca_group.png",                 outdir=config["output_dir"]),
-        expand("{outdir}/atac/volcano_plot.png",              outdir=config["output_dir"]),
-        expand("{outdir}/atac/GREATpathwayEnrichment_hf.csv", outdir=config["output_dir"]),
-        expand("{outdir}/atac/GREATpathwayEnrichment_mf.csv", outdir=config["output_dir"]),
-        expand("{outdir}/atac/GREATpathways_hf.png",          outdir=config["output_dir"]),
-        expand("{outdir}/atac/GREATpathways_mf.png",          outdir=config["output_dir"]),
+        expand("{outdir}/atac/{comparison}/differential_peaks.csv",        outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/annotated_peaks.csv",           outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/vsd_counts.csv",                outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/pca_group.png",                 outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/volcano_plot.png",              outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_up.csv",                  outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_down.csv",                outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_up_dotplot.png",          outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_down_dotplot.png",        outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_up_padj.csv",             outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_down_padj.csv",           outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_up_dotplot_padj.png",     outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/GREAT_{database}_down_dotplot_padj.png",   outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=ATAC_DATABASES.keys()),
+        expand("{outdir}/atac/{comparison}/motif_ORA_up.csv",              outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/motif_ORA_down.csv",            outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/motif_ORA_up_dotplot.png",      outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/motif_ORA_down_dotplot.png",    outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/celltype_fractions.csv",         outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/celltype_proportions.png",       outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/celltype_fractions_no_neutrophils.csv", outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/celltype_proportions_no_neutrophils.png", outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/atac/{comparison}/gene_level_aggregation.csv", outdir=config["output_dir"], comparison=COMPARISONS.keys()),
         # RNA-seq outputs
-        expand("{outdir}/rna/differentialAnalysis_RNAseq_HighVSLow.csv", outdir=config["output_dir"]),
-        expand("{outdir}/rna/pca.png",                                    outdir=config["output_dir"]),
-        expand("{outdir}/rna/heatmap.png",                                outdir=config["output_dir"]),
-        expand("{outdir}/rna/volcano_plot.png",                           outdir=config["output_dir"]),
-        expand("{outdir}/rna/enrichedPathways_HighFatigue.csv",           outdir=config["output_dir"]),
-        expand("{outdir}/rna/pathwayEnrichment_topPathways.png",          outdir=config["output_dir"]),
-        expand("{outdir}/rna/pathwayEnrichment_selectedPathways.png",     outdir=config["output_dir"]),
+        expand("{outdir}/rna/{comparison}/differential_expression.csv",                outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/rna/{comparison}/pca.png",                                    outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/rna/{comparison}/heatmap.png",                                outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/rna/{comparison}/volcano_plot.png",                           outdir=config["output_dir"], comparison=COMPARISONS.keys()),
+        expand("{outdir}/rna/{comparison}/enrichedPathways_{database}.csv",                       outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=RNA_DATABASES.keys()),
+        expand("{outdir}/rna/{comparison}/pathwayEnrichment_{database}_topPathways.png",          outdir=config["output_dir"], comparison=COMPARISONS.keys(), database=RNA_DATABASES.keys()),
+        #expand("{outdir}/rna/{comparison}/pathwayEnrichment_selectedPathways.png",     outdir=config["output_dir"], comparison=COMPARISONS.keys()),
